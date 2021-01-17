@@ -7,9 +7,12 @@ import axios from 'axios'
 axios.defaults.baseURL = 'http://apis.imooc.com/api/'
 // 请求之前，设置参数icode, loading = true
 axios.interceptors.request.use(config => {
-  config.data = { ...config.data, icode: '8720673DAD76D867' }
-  config.params = { ...config.params, icode: '8720673DAD76D867' }
-  console.log(config)
+  if (config.method === 'get') {
+    config.params = { ...config.params, icode: '8720673DAD76D867' }
+  } else {
+    config.data = { ...config.data, icode: '8720673DAD76D867' }
+  }
+  // console.log(config)
   store.commit('setLoading', true)
   return config
 })
