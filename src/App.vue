@@ -18,11 +18,13 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed } from 'vue'
+import { defineComponent, computed, onMounted } from 'vue'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import GlobalHeader from './components/GlobalHeader.vue'
 import Loader from './components/Loader.vue'
 import { useStore } from 'vuex'
+import axios from 'axios'
+import { GlobalDataProps } from './store'
 
 export default defineComponent({
   name: 'app',
@@ -31,9 +33,18 @@ export default defineComponent({
     Loader
   },
   setup () {
-    const store = useStore()
+    const store = useStore<GlobalDataProps>()
     const currentUser = computed(() => store.state.user)
     const isLoading = computed(() => store.state.loading)
+    const token = computed(() => store.state.token)
+    // 加载APP时，判断用户是否未登录，以及token 是否存在
+    onMounted(() => {
+      if (!currentUser.value.isLogin && token.value) {
+        // 设置头部
+        axios.defaults.headers.common.Authorization = `Bearer ${token.value}`
+        store.dispatch('fetchCurrentUser')
+      }
+    })
     return {
       currentUser,
       isLoading
