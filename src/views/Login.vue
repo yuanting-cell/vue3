@@ -65,7 +65,10 @@ export default defineComponent({
           email: emailVal.value,
           password: passwordVal.value
         }
+        console.log(payload)
+        alert(111)
         store.dispatch('loginAndFetch', payload).then(data => {
+          console.log('isLogin', store.state.user.isLogin)
           // 获取token
           console.log(data)
           router.push('/')

@@ -11,6 +11,12 @@ export interface UserProps {
   avatar?: ImageProps;
   description?: string;
 }
+// 专栏图片数据类型
+interface ImageProps {
+  _id?: string;
+  url?: string;
+  createAt?: string;
+}
 // 专栏列表数据
 export interface ColumnProps {
   _id: string;
@@ -37,12 +43,6 @@ export interface GlobalDataProps {
   posts: PostProps[];
   user: UserProps;
 }
-// 专栏图片数据类型
-interface ImageProps {
-  _id?: string;
-  url?: string;
-  createAt?: string;
-}
 // 提取async await 的公共函数
 const getAndCommit = async (url: string, mutationName: string, commit: Commit) => {
   const { data } = await axios.get(url)
@@ -60,7 +60,7 @@ const store = createStore<GlobalDataProps>({
     loading: false,
     columns: [],
     posts: [],
-    user: { isLogin: false, nickName: 'ytt', column: '1' }
+    user: { isLogin: false }
   },
   mutations: {
     // 用户登录后修改数据

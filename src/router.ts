@@ -40,7 +40,7 @@ const router = createRouter({
 })
 // 导航守卫——前置守卫
 router.beforeEach((to, from, next) => {
-  // console.log(to.meta)
+  console.log(to.meta)
   // console.log('to', to)
   // console.log('from', from)
   // 1.如果下一个页面有requiredLogin=true，且用户尚未登陆，则直接跳转到登录页面; 否则直接跳转下一个页面 (要求登录才能访问，但用户却没有登录)

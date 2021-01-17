@@ -9,10 +9,11 @@ axios.defaults.baseURL = 'http://apis.imooc.com/api/'
 axios.interceptors.request.use(config => {
   if (config.method === 'get') {
     config.params = { ...config.params, icode: '8720673DAD76D867' }
+  } else if (config.data instanceof FormData) {
+    config.data.append('icode', '8720673DAD76D867')
   } else {
     config.data = { ...config.data, icode: '8720673DAD76D867' }
   }
-  // console.log(config)
   store.commit('setLoading', true)
   return config
 })
