@@ -11,8 +11,14 @@ export interface UserProps {
   avatar?: ImageProps;
   description?: string;
 }
+// 请求返回的数据格式
+export interface ResponseType<p = {}> {
+  code: number;
+  msg: string;
+  data: p;
+}
 // 专栏图片数据类型
-interface ImageProps {
+export interface ImageProps {
   _id?: string;
   url?: string;
   createAt?: string;
@@ -30,7 +36,7 @@ export interface PostProps {
   title: string;
   excerpt?: string;
   content?: string;
-  image?: ImageProps;
+  image?: ImageProps | string;
   createdAt?: string;
   column: string;
   author?: string;
@@ -42,11 +48,18 @@ export interface GlobalDataProps {
   columns: ColumnProps[];
   posts: PostProps[];
   user: UserProps;
+  error: GlobalErrorProps;
+}
+// 全局错误信息
+export interface GlobalErrorProps {
+  status: boolean;
+  message?: string;
 }
 // 提取async await 的公共函数
 const getAndCommit = async (url: string, mutationName: string, commit: Commit) => {
   const { data } = await axios.get(url)
   commit(mutationName, data)
+  return data
 }
 // 创建和发送请求
 const postAndCommit = async (url: string, mutationName: string, commit: Commit, payload: any) => {
@@ -60,7 +73,8 @@ const store = createStore<GlobalDataProps>({
     loading: false,
     columns: [],
     posts: [],
-    user: { isLogin: false }
+    user: { isLogin: false },
+    error: { status: false }
   },
   mutations: {
     // 用户登录后修改数据
@@ -95,8 +109,19 @@ const store = createStore<GlobalDataProps>({
       localStorage.setItem('token', token)
       axios.defaults.headers.common.Authorization = `Bearer ${token}`
     },
+    // 获取用户登录信息
     fetchCurrentUser (state, rawData) {
       state.user = { isLogin: true, ...rawData.data }
+    },
+    // 设置错误信息
+    setError (state, e: GlobalErrorProps) {
+      state.error = e
+    },
+    // token 请求失败时
+    logout (state) {
+      state.token = ''
+      localStorage.remove('token')
+      delete axios.defaults.headers.common.Authorization
     }
   },
   actions: {
@@ -124,7 +149,7 @@ const store = createStore<GlobalDataProps>({
     //   commit('fetchColumn', data)
     // },
     fetchColumn ({ commit }, cid) {
-      getAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
+      return getAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
     },
     // 获取单个专栏的文章
     // fetchPosts ({ commit }, cid) {
@@ -137,15 +162,19 @@ const store = createStore<GlobalDataProps>({
     //   commit('fetchPosts', data)
     // }
     fetchPosts ({ commit }, cid) {
-      getAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit)
+      return getAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit)
     },
     // 用户登录时，发送请求
     login ({ commit }, payload) {
       return postAndCommit('/user/login', 'login', commit, payload)
     },
+    // 创建文章
+    createPost ({ commit }, payload) {
+      return postAndCommit('/posts', 'createPost', commit, payload)
+    },
     // 请求获取当前用户信息
     fetchCurrentUser ({ commit }) {
-      getAndCommit('/user/current', 'fetchCurrentUser', commit)
+      return getAndCommit('/user/current', 'fetchCurrentUser', commit)
     },
     // 组合两个actions
     loginAndFetch ({ dispatch }, loginData) {

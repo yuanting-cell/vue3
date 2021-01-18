@@ -34,7 +34,7 @@ export default defineComponent({
             url: require('@/assets/column.jpg')
           }
         } else {
-          post.image.url = post.image.url + '?x-oss-process=image/resize,m_pad,h_100,w_100,color_FF0000'
+          post.image = post.image + '?x-oss-process=image/resize,m_pad,h_100,w_100,color_FF0000'
         }
         return post
       })

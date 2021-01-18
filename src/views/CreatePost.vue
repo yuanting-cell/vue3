@@ -1,6 +1,25 @@
 <template>
   <div class="create-post-page">
     <h4>新建文章</h4>
+    <uploader
+      actions="/upload"
+      :beforeUpload="uploadCheck"
+      @file-uploaded="handleFileUploaded"
+      class="d-flex justify-content-center align-items-center bg-light text-secondary w-100 my-4"
+    >
+      <h2>点击添加头图</h2>
+      <template v-slot:loading>
+        <div class="d-flex">
+          <div class="spinner-border text-secondary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <h2>正在上传</h2>
+        </div>
+      </template>
+      <template #uploaded="dataProps">
+        <img :src="dataProps.uploadedData.data.url" />
+      </template>
+    </uploader>
     <validate-form @form-submit="onFormSubmit">
       <div class="mb-3">
         <label class="form-label">文章标题：</label>
@@ -33,19 +52,25 @@
 import { defineComponent, ref } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { GlobalDataProps, PostProps } from '../store'
+import { GlobalDataProps, PostProps, ResponseType, ImageProps } from '../store'
 import ValidateInput, { RulesProp } from '../components/ValidateInput.vue'
 import ValidateForm from '../components/ValidateForm.vue'
+import Uploader from '../components/Uploader.vue'
+import createMessage from '../components/createMessage'
+import { beforeUploadCheck } from '../helper'
+import axios from 'axios'
 
 export default defineComponent({
   name: 'Login',
   components: {
     ValidateInput,
-    ValidateForm
+    ValidateForm,
+    Uploader
   },
   setup () {
     const titleVal = ref('')
     const router = useRouter()
+    let imageId = ''
     const store = useStore<GlobalDataProps>()
     const titleRules: RulesProp = [
       { type: 'required', message: '文章标题不能为空' }
@@ -54,6 +79,12 @@ export default defineComponent({
     const contentRules: RulesProp = [
       { type: 'required', message: '文章详情不能为空' }
     ]
+    // 上传文件成功时，获取图片ID
+    const handleFileUploaded = (rawData: ResponseType<ImageProps>) => {
+      if (rawData.data._id) {
+        imageId = rawData.data._id
+      }
+    }
     const onFormSubmit = (result: boolean) => {
       if (result) {
         // 获取到user 的columnId
@@ -66,18 +97,72 @@ export default defineComponent({
             column,
             author: _id
           }
-          store.commit('createPost', newPost)
-          router.push({ name: 'column', params: { id: column } })
+          if (imageId) {
+            newPost.image = imageId
+          }
+          store.dispatch('createPost', newPost).then(() => {
+            createMessage('发表成功，2秒后跳转到文章', 'success', 2000)
+            setTimeout(() => {
+              router.push({ name: 'column', params: { id: column } })
+            }, 2000)
+          })
         }
       }
     }
+    // 上传前进行验证
+    const uploadCheck = (file: File) => {
+      const result = beforeUploadCheck(file, { format: ['image/jpeg', 'image/png'], size: 1 })
+      const { passed, error } = result
+      if (error === 'format') {
+        createMessage('上传图片只能是 JPG/PNG 格式！', 'error')
+      }
+      if (error === 'size') {
+        createMessage('上传图片不能超过 1Mb', 'error')
+      }
+      return passed
+    }
+    // js 模拟上传文件
+    // const handleFileChange = (e: Event) => {
+    //   const target = e.target as HTMLInputElement
+    //   // console.log('target', target)
+    //   const files = target.files
+    //   // console.log('files', files)
+
+    //   if (files) {
+    //     const uploadedFile = files[0]
+    //     const formData = new FormData()
+    //     formData.append(uploadedFile.name, uploadedFile)
+    //     axios.post('/upload', formData, {
+    //       headers: {
+    //         'Content-Type': 'multipart/form-data'
+    //       }
+    //     }).then((resp: any) => {
+    //       console.log(resp)
+    //     })
+    //   }
+    // }
     return {
       titleRules,
       titleVal,
       contentVal,
       contentRules,
-      onFormSubmit
+      onFormSubmit,
+      uploadCheck,
+      handleFileUploaded
+      // handleFileChange
     }
   }
 })
 </script>
+
+<style>
+.create-post-page .file-upload-container {
+  height: 200px;
+  cursor: pointer;
+}
+.create-post-page .file-upload-container img{
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  }
+</style>
