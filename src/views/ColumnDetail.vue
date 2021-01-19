@@ -17,9 +17,11 @@
 import { defineComponent, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
-import { GlobalDataProps } from '../store'
+import { ColumnProps, GlobalDataProps } from '../store'
 import { testData, testPosts } from '../testData'
 import PostList from '../components/PostList.vue'
+import { generateFitUrl } from '../helper'
+
 export default defineComponent({
   components: {
     PostList
@@ -33,7 +35,13 @@ export default defineComponent({
     const currentId = route.params.id
     // 当专栏列表的ID值 = currentId时返回该对象=>column
     // const column = store.state.columns.find(c => c.id === currentId)
-    const column = computed(() => store.getters.getColumnById(currentId))
+    const column = computed(() => {
+      const selectColumn = store.getters.getColumnById(currentId) as ColumnProps
+      if (selectColumn) {
+        generateFitUrl(selectColumn, 100, 100)
+      }
+      return selectColumn
+    })
     // 当专栏详情的columnId = currentId时，返回符合条件的对象=> list[]
     // const list = store.state.posts.filter(post => post.columnId === currentId)
     const list = computed(() => store.getters.getPostsByCid(currentId))

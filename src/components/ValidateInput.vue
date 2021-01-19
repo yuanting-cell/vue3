@@ -4,18 +4,16 @@
       v-if="tag !== 'textarea'"
       class="form-control"
       :class="{'is-invalid': inputRef.error}"
-      :value="inputRef.val"
       @blur="validateInput"
-      @input="updateValue"
+      v-model="inputRef.val"
       v-bind="$attrs"
     >
     <textarea
       v-else
       class="form-control"
-      :class="{'is-invalid': inputRef.error}"
-      :value="inputRef.val"
+      :class="{'is-invalid': inputRef.error}"     
       @blur="validateInput"
-      @input="updateValue"
+      v-model="inputRef.val"
       v-bind="$attrs"
     >
     </textarea>
@@ -24,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, PropType, onMounted } from 'vue'
+import { defineComponent, reactive, PropType, onMounted, watch, computed } from 'vue'
 import { emitter } from './ValidateForm.vue'
 
 // email 正则表达式
@@ -51,19 +49,16 @@ export default defineComponent({
   setup (props, context) {
     // 表单数据
     const inputRef = reactive({
-      val: props.modelValue || '',
+      // 使用computed 属性就可以用v-model 方式绑定，而不用：value=inputref.val,@input=updatevValue方法了
+      val: computed({
+        get: () => props.modelValue || '',
+        set: val => {
+          context.emit('update:modelValue', val)
+        }
+      }),    
       error: false,
       message: ''
     })
-    // 自定义组件的数据双向绑定—— v-model
-    const updateValue = (e: KeyboardEvent) => {
-      // 获取输入框的值
-      const targetValue = (e.target as HTMLInputElement).value
-      // 将输入的值赋值给 inputRef.val
-      inputRef.val = targetValue
-      // 向外发送事件，传递数据
-      context.emit('update:modelValue', targetValue)
-    }
     // 验证input 函数 —— blur 时调用
     const validateInput = () => {
       if (props.rules) {
@@ -97,8 +92,7 @@ export default defineComponent({
     })
     return {
       inputRef,
-      validateInput,
-      updateValue
+      validateInput
     }
   }
 })

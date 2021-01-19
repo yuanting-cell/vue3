@@ -20,7 +20,7 @@
 </template>
 
 <script lang='ts'>
-import { defineComponent, ref, PropType } from 'vue'
+import { defineComponent, ref, PropType, watch } from 'vue'
 import axios from 'axios'
 
 type UploadStatus = 'ready' | 'loading' | 'success' | 'error'
@@ -33,15 +33,25 @@ export default defineComponent({
     },
     beforeUpload: {
       type: Function as PropType<CheckFunction>
+    },
+    uploaded: {
+      type: Object
     }
   },
   emits: ['file-uploaded', 'file-uploaded-error'],
   inheritAttrs: false,
   setup (props, context) {
+    console.log('props', props.uploaded)
     const fileInput = ref<null | HTMLInputElement>(null)
-    const fileStatus = ref<UploadStatus>('ready')
-    // 上传成功之后的数据
-    const uploadedData = ref()
+    const fileStatus = ref<UploadStatus>(props.uploaded ? 'success' : 'ready')
+    // 上传成功之后更新数据
+    const uploadedData = ref(props.uploaded)
+    watch(() => props.uploaded, (newValue) => {
+      if (newValue) {
+        fileStatus.value = 'success'
+        uploadedData.value = newValue
+      }
+    })
     // 点击上传按钮时
     const triggerUpload = () => {
       if (fileInput.value) {
@@ -64,7 +74,6 @@ export default defineComponent({
         fileStatus.value = 'loading'
         const formData = new FormData()
         formData.append('file', files[0])
-        
         axios.post(props.actions, formData, {
           headers: {
             'Content-Type': 'multipart  form-data'

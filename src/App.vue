@@ -19,7 +19,7 @@
 
 <script lang="ts">
 import { defineComponent, computed, onMounted, watch } from 'vue'
-import 'bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap/dist/css/bootstrap.min.css' // 在文档中 Getting started -> webpack -> import Compiled Css
 import GlobalHeader from './components/GlobalHeader.vue'
 import Loader from './components/Loader.vue'
 import { useStore } from 'vuex'

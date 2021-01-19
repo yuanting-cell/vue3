@@ -1,5 +1,5 @@
 import { createStore, Commit } from 'vuex'
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
 
 // 用户信息数据
 export interface UserProps {
@@ -22,6 +22,7 @@ export interface ImageProps {
   _id?: string;
   url?: string;
   createAt?: string;
+  fitUrl?: string;
 }
 // 专栏列表数据
 export interface ColumnProps {
@@ -39,7 +40,7 @@ export interface PostProps {
   image?: ImageProps | string;
   createdAt?: string;
   column: string;
-  author?: string;
+  author?: string | UserProps;
 }
 // 全局数据类型
 export interface GlobalDataProps {
@@ -56,15 +57,20 @@ export interface GlobalErrorProps {
   message?: string;
 }
 // 提取async await 的公共函数
-const getAndCommit = async (url: string, mutationName: string, commit: Commit) => {
-  const { data } = await axios.get(url)
-  commit(mutationName, data)
-  return data
-}
+// const getAndCommit = async (url: string, mutationName: string, commit: Commit) => {
+//   const { data } = await axios.get(url)
+//   commit(mutationName, data)
+//   return data
+// }
 // 创建和发送请求
-const postAndCommit = async (url: string, mutationName: string, commit: Commit, payload: any) => {
-  const { data } = await axios.post(url, payload)
-  commit(mutationName, data)
+// const postAndCommit = async (url: string, mutationName: string, commit: Commit, payload: any) => {
+//   const { data } = await axios.post(url, payload)
+//   commit(mutationName, data)
+//   return data
+// }
+const asyncAndCommit = async (url: string, mutationName: string, commit: Commit, config: AxiosRequestConfig = { method: 'get'}) => {
+  const { data } = await axios(url, config)
+  commit (mutationName, data)
   return data
 }
 const store = createStore<GlobalDataProps>({
@@ -77,13 +83,13 @@ const store = createStore<GlobalDataProps>({
     error: { status: false }
   },
   mutations: {
-    // 用户登录后修改数据
-    // login (state) {
-    //   state.user = { ...state.user, isLogin: true, nickName: 'ytt' }
-    // },
     // 新建文章(添加到对应的作者文章列表上)
     createPost (state, newPost) {
       state.posts.push(newPost)
+    },
+    // 删除文章操作(使得文章列表不包含当前ID的文章)
+    deletetePost (state, { data }) {
+      state.posts = state.posts.filter(post => post._id !== data._id)
     },
     // 将专栏列表的假数据替换成真实后端数据
     fetchColumns (state, rawData) {
@@ -96,6 +102,20 @@ const store = createStore<GlobalDataProps>({
     // 替换某个专栏的文章列表
     fetchPosts (state, rawData) {
       state.posts = rawData.data.list
+    },
+    // 获取单个文章数据
+    fetchPost (state, rawData) {
+      state.posts = [rawData.data]
+    },
+    // 更新文章
+    updatePost (state, { data }) {
+      state.posts = state.posts.map(post =>{
+        if (post._id === data._id) {
+          return data
+        } else {
+          return post
+        }
+      })
     },
     // 设置loading 状态
     setLoading (state, status) {
@@ -126,55 +146,43 @@ const store = createStore<GlobalDataProps>({
   },
   actions: {
     // 获取专栏列表
-    // fetchColumns (context) {
-    //   axios.get('/columns').then(resp => {
-    //     context.commit('fetchColumns', resp.data)
-    //   })
-    // },
-    // async fetchColumns ({ commit }) {
-    //   const { data } = await axios.get('/columns')
-    //   commit('fetchColumns', data)
-    // },
     fetchColumns ({ commit }) {
-      getAndCommit('/columns', 'fetchColumns', commit)
+      return asyncAndCommit('/columns', 'fetchColumns', commit)
     },
     // 获取单个专栏
-    // fetchColumn ({ commit }, cid) {
-    //   axios.get(`/columns/${cid}`).then(resp => {
-    //     commit('fetchColumn', resp.data)
-    //   })
-    // },
-    // async fetchColumn ({ commit }, cid) {
-    //   const { data } = await axios.get(`/columns/${cid}`)
-    //   commit('fetchColumn', data)
-    // },
     fetchColumn ({ commit }, cid) {
-      return getAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
+      return asyncAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
     },
     // 获取单个专栏的文章
-    // fetchPosts ({ commit }, cid) {
-    //   axios.get(`/columns/${cid}/posts`).then(resp => {
-    //     commit('fetchPosts', resp.data)
-    //   })
-    // }
-    // async fetchPosts ({ commit }, cid) {
-    //   const { data } = await axios.get(`/columns/${cid}/posts`)
-    //   commit('fetchPosts', data)
-    // }
     fetchPosts ({ commit }, cid) {
-      return getAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit)
+      return asyncAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit)
+    },
+    // 获取单个文章数据
+    fetchPost ({ commit }, id) {
+      return asyncAndCommit(`/posts/${id}`, 'fetchPost', commit)
+    },
+    // 更新文章
+    updatePost ({ commit }, { id, payload}) {
+      return asyncAndCommit(`/posts/${id}`, 'updatePosts', commit, {
+        method: 'patch',
+        data: payload
+      })
     },
     // 用户登录时，发送请求
     login ({ commit }, payload) {
-      return postAndCommit('/user/login', 'login', commit, payload)
+      return asyncAndCommit('/user/login', 'login', commit, { method: 'post', data: payload })
     },
     // 创建文章
     createPost ({ commit }, payload) {
-      return postAndCommit('/posts', 'createPost', commit, payload)
+      return asyncAndCommit('/posts', 'createPost', commit, { method: 'post' })
+    },
+    // 删除文章
+    deletePost ({ commit }, id) {
+      return asyncAndCommit(`/posts/${id}`, 'deletePost', commit, { method: 'delete', data: id })
     },
     // 请求获取当前用户信息
     fetchCurrentUser ({ commit }) {
-      return getAndCommit('/user/current', 'fetchCurrentUser', commit)
+      return asyncAndCommit('/user/current', 'fetchCurrentUser', commit)
     },
     // 组合两个actions
     loginAndFetch ({ dispatch }, loginData) {
@@ -184,11 +192,17 @@ const store = createStore<GlobalDataProps>({
     }
   },
   getters: {
+    // 通过ID 获取专栏数据
     getColumnById: (state) => (id: string) => {
       return state.columns.find(c => c._id === id)
     },
+    // 通过ID获取文章
     getPostsByCid: (state) => (cid: string) => {
       return state.posts.filter(post => post.column === cid)
+    },
+    // 获取当前文章数据
+    getCurrentPost: (state) => (id: string) => {
+      return state.posts.find(post => post._id === id)
     }
   }
 })
