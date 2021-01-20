@@ -33,7 +33,7 @@ export default defineComponent({
       default: false
     }
   },
-  emits: ['modal-close', 'modal-on-confirm'],
+  emits: ['modal-on-close', 'modal-on-confirm'],
   setup (props, context) {
     useDOMCreate('modal')
     const onClose = () => {

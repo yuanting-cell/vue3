@@ -11,7 +11,7 @@
     <textarea
       v-else
       class="form-control"
-      :class="{'is-invalid': inputRef.error}"     
+      :class="{'is-invalid': inputRef.error}"
       @blur="validateInput"
       v-model="inputRef.val"
       v-bind="$attrs"
@@ -55,7 +55,7 @@ export default defineComponent({
         set: val => {
           context.emit('update:modelValue', val)
         }
-      }),    
+      }),
       error: false,
       message: ''
     })

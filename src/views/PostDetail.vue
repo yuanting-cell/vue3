@@ -51,6 +51,7 @@ export default defineComponent({
     const route = useRoute()
     const router = useRouter()
     const currentId = route.params.id
+    // gthub 中查找，markdown -> 转化为HTML
     const md = new MarkdownIt()
     onMounted(() => {
       store.dispatch('fetchPost', currentId)
@@ -58,6 +59,7 @@ export default defineComponent({
     const currentPost = computed<PostProps>(() => store.getters.getCurrentPost(currentId))
     const currentHTML = computed(() => {
       if (currentPost.value && currentPost.value.content) {
+        // 转化成html
         return md.render(currentPost.value.content)
       }
     })

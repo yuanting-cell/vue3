@@ -88,13 +88,13 @@ export default defineComponent({
       { type: 'required', message: '文章详情不能为空' }
     ]
     // 作者进入自己的专栏，发送请求，获取作者ID，有编辑删除按钮，点击编辑按钮，进入文章create页面，且内容已经自动填充了
-    onMounted (() => {
+    onMounted(() => {
       if (isEditMode) {
         store.dispatch('fetchPost', route.query.id).then((rawData: ResponseType<PostProps>) => {
           const currentPost = rawData.data
           // console.log('rawData', rawData)
           if (currentPost.image) {
-            uploadedData.value = { data: currentPost.image}
+            uploadedData.value = { data: currentPost.image }
           }
           titleVal.value = currentPost.title
           contentVal.value = currentPost.content || ''
@@ -157,7 +157,7 @@ export default defineComponent({
       onFormSubmit,
       uploadCheck,
       handleFileUploaded,
-      uploadedData，
+      uploadedData,
       isEditMode
     }
   }

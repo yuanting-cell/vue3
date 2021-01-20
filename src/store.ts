@@ -1,5 +1,6 @@
 import { createStore, Commit } from 'vuex'
 import axios, { AxiosRequestConfig } from 'axios'
+import { arrToObj, objToArr } from './helper'
 
 // 用户信息数据
 export interface UserProps {
@@ -42,12 +43,16 @@ export interface PostProps {
   column: string;
   author?: string | UserProps;
 }
+// 列表数据格式
+interface ListProps<P> {
+  [id: string]: P;
+}
 // 全局数据类型
 export interface GlobalDataProps {
   token: string;
   loading: boolean;
-  columns: ColumnProps[];
-  posts: PostProps[];
+  columns: { data: ListProps<ColumnProps>; currentPage: number; total: number };
+  posts: { data: ListProps<PostProps>; loadedColumns: string[] };
   user: UserProps;
   error: GlobalErrorProps;
 }
@@ -68,54 +73,59 @@ export interface GlobalErrorProps {
 //   commit(mutationName, data)
 //   return data
 // }
-const asyncAndCommit = async (url: string, mutationName: string, commit: Commit, config: AxiosRequestConfig = { method: 'get'}) => {
+const asyncAndCommit = async (url: string, mutationName: string, commit: Commit, config: AxiosRequestConfig = { method: 'get' }, extraData?: any) => {
   const { data } = await axios(url, config)
-  commit (mutationName, data)
+  if (extraData) {
+    commit(mutationName, { data, extraData })
+  } else {
+    commit(mutationName, data)
+  }
   return data
 }
 const store = createStore<GlobalDataProps>({
   state: {
     token: localStorage.getItem('token') || '',
     loading: false,
-    columns: [],
-    posts: [],
+    columns: { data: {}, currentPage: 0, total: 0 },
+    posts: { data: {}, loadedColumns: [] },
     user: { isLogin: false },
     error: { status: false }
   },
   mutations: {
     // 新建文章(添加到对应的作者文章列表上)
     createPost (state, newPost) {
-      state.posts.push(newPost)
+      state.posts.data[newPost._id] = newPost
     },
-    // 删除文章操作(使得文章列表不包含当前ID的文章)
+    // 删除文章操作(删除列表中当前ID的文章)
     deletetePost (state, { data }) {
-      state.posts = state.posts.filter(post => post._id !== data._id)
+      delete state.posts.data[data._id]
     },
     // 将专栏列表的假数据替换成真实后端数据
     fetchColumns (state, rawData) {
-      state.columns = rawData.data.list
+      const { data } = state.columns
+      const { list, count, currentPage } = rawData.data
+      state.columns = {
+        data: { ...data, ...arrToObj(list) },
+        total: count,
+        currentPage: currentPage * 1
+      }
     },
     // 替换单个专栏的数据
     fetchColumn (state, rawData) {
-      state.columns = [rawData.data]
+      state.columns.data[rawData.data._id] = rawData.data
     },
-    // 替换某个专栏的文章列表
-    fetchPosts (state, rawData) {
-      state.posts = rawData.data.list
+    // 不断添加某个专栏的文章列表(将现有文章都添加进 loadedColumns 数组里面)
+    fetchPosts (state, { data: rawData, extraData: columnId }) {
+      state.posts.data = { ...state.posts.data, ...arrToObj(rawData.data.list) }
+      state.posts.loadedColumns.push(columnId)
     },
     // 获取单个文章数据
     fetchPost (state, rawData) {
-      state.posts = [rawData.data]
+      state.posts.data[rawData.data._id] = rawData.data
     },
-    // 更新文章
+    // 更新文章内容
     updatePost (state, { data }) {
-      state.posts = state.posts.map(post =>{
-        if (post._id === data._id) {
-          return data
-        } else {
-          return post
-        }
-      })
+      state.posts.data[data._id] = data
     },
     // 设置loading 状态
     setLoading (state, status) {
@@ -145,25 +155,37 @@ const store = createStore<GlobalDataProps>({
     }
   },
   actions: {
-    // 获取专栏列表
-    fetchColumns ({ commit }) {
-      return asyncAndCommit('/columns', 'fetchColumns', commit)
+    // 获取专栏列表(没有加载过才发送请求）)
+    fetchColumns ({ state, commit }, params = {}) {
+      const { currentPage = 1, pageSize = 6 } = params
+      if (state.columns.currentPage < currentPage) {
+        return asyncAndCommit(`/columns?currentPage=${currentPage}&pageSize=${pageSize}`, 'fetchColumns', commit)
+      }
     },
     // 获取单个专栏
-    fetchColumn ({ commit }, cid) {
-      return asyncAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
+    fetchColumn ({ state, commit }, cid) {
+      if (!state.columns.data[cid]) {
+        return asyncAndCommit(`/columns/${cid}`, 'fetchColumn', commit)
+      }
     },
-    // 获取单个专栏的文章
-    fetchPosts ({ commit }, cid) {
-      return asyncAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit)
+    // 获取单个专栏的文章(如果文章列表包含当前文章，则不再发送请求)
+    fetchPosts ({ state, commit }, cid) {
+      if (!state.posts.loadedColumns.includes(cid)) {
+        return asyncAndCommit(`/columns/${cid}/posts`, 'fetchPosts', commit, { method: 'get' }, cid)
+      }
     },
-    // 获取单个文章数据
-    fetchPost ({ commit }, id) {
-      return asyncAndCommit(`/posts/${id}`, 'fetchPost', commit)
+    // 获取单个文章数据(如果当前ID的文章不在文章列表里面，且文章的content 不存在时，在发送请求)
+    fetchPost ({ state, commit }, id) {
+      const currentPost = state.posts.data[id]
+      if (!currentPost || !currentPost.content) {
+        return asyncAndCommit(`/posts/${id}`, 'fetchPost', commit)
+      } else {
+        return Promise.resolve({ data: currentPost })
+      }
     },
     // 更新文章
-    updatePost ({ commit }, { id, payload}) {
-      return asyncAndCommit(`/posts/${id}`, 'updatePosts', commit, {
+    updatePost ({ commit }, { id, payload }) {
+      return asyncAndCommit(`/posts/${id}`, 'updatePost', commit, {
         method: 'patch',
         data: payload
       })
@@ -192,17 +214,21 @@ const store = createStore<GlobalDataProps>({
     }
   },
   getters: {
+    // 获取专栏列表
+    getColumns: (state) => {
+      return objToArr(state.columns.data)
+    },
     // 通过ID 获取专栏数据
     getColumnById: (state) => (id: string) => {
-      return state.columns.find(c => c._id === id)
+      return state.columns.data[id]
     },
-    // 通过ID获取文章
+    // 通过ID获取文章列表
     getPostsByCid: (state) => (cid: string) => {
-      return state.posts.filter(post => post.column === cid)
+      return objToArr(state.posts.data).filter(post => post.column === cid)
     },
-    // 获取当前文章数据
+    // 获取当前文章内容
     getCurrentPost: (state) => (id: string) => {
-      return state.posts.find(post => post._id === id)
+      return state.posts.data[id]
     }
   }
 })
